@@ -122,11 +122,11 @@ await step('assinatura: criar, pausar, retomar e cancelar', async () => {
   await page.getByRole('button', { name: /Assinar por/ }).click();
   await page.getByText('Plano Anual', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Pausar' }).click();
-  await page.getByText('Pausada').waitFor();
+  await page.getByText('Pausada', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Retomar' }).click();
-  await page.getByText('Ativa').waitFor();
+  await page.getByText('Ativa', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Cancelar' }).click();
-  await page.getByText('Cancelada').waitFor();
+  await page.getByText('Cancelada', { exact: true }).waitFor();
 });
 
 await step('lista de pedidos', async () => {
