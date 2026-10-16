@@ -4,6 +4,12 @@
 
 Backend de pedidos e pagamentos em **Java 21 + Spring Boot 3**, integrado ao **Mercado Pago**. Aceita **Pix**, **cartão de crédito** (com parcelamento), **boleto** e **assinaturas recorrentes**, com foco em um ponto que costuma ser negligenciado: **nunca confirmar um pagamento sem validá-lo de ponta a ponta**.
 
+## Demonstração
+
+![Demonstração da Payflow API](docs/demo.gif)
+
+Fluxo completo de um pagamento Pix: cadastro e login, criação do pedido, cobrança com `Idempotency-Key`, clique duplicado sem nova cobrança, webhook forjado recusado e webhook assinado aprovando o pedido. A gravação é feita pelo workflow [`demo.yml`](.github/workflows/demo.yml) com a API rodando sobre PostgreSQL e o Mercado Pago simulado por WireMock (roteiro em [`demo/demo.sh`](demo/demo.sh)). [Versão em MP4](docs/demo.mp4).
+
 ## O que o projeto resolve
 
 Integrar um gateway de pagamento parece simples até aparecerem os casos reais: o cliente clica duas vezes no botão, o webhook chega fora de ordem (ou não chega), alguém forja uma notificação, o valor cobrado não bate com o pedido. Esta API trata cada um desses cenários:
