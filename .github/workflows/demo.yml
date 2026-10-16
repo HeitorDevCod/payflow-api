@@ -1,0 +1,87 @@
+name: Demo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: payflow
+          POSTGRES_USER: payflow
+          POSTGRES_PASSWORD: payflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U payflow"
+          --health-interval 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Build
+        run: mvn -B -q package -DskipTests
+
+      - name: Mercado Pago simulado
+        run: |
+          docker run -d --name mp -p 8089:8080 \
+            -v "$PWD/demo/wiremock:/home/wiremock" \
+            wiremock/wiremock:3.9.1 --global-response-templating
+          until curl -sf http://localhost:8089/__admin/mappings > /dev/null; do sleep 1; done
+
+      - name: Subir a API
+        env:
+          MP_BASE_URL: http://localhost:8089
+          MP_ACCESS_TOKEN: TEST-demo
+          MP_WEBHOOK_SECRET: demo-webhook-secret
+          JWT_SECRET: demo-secret-demo-secret-demo-secret-1234
+        run: |
+          nohup java -jar target/payflow-api-*.jar > app.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/actuator/health > /dev/null && exit 0
+            sleep 2
+          done
+          cat app.log
+          exit 1
+
+      - name: Ferramentas de gravação
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq asciinema jq ffmpeg > /dev/null
+          curl -sSL -o agg https://github.com/asciinema/agg/releases/download/v1.5.0/agg-x86_64-unknown-linux-gnu
+          chmod +x agg
+
+      - name: Gravar
+        env:
+          MP_WEBHOOK_SECRET: demo-webhook-secret
+        run: |
+          stty cols 92 rows 34 || true
+          asciinema rec --overwrite --cols 92 --rows 34 -c "bash demo/demo.sh" demo.cast
+          mkdir -p docs
+          ./agg --theme monokai --font-size 18 --idle-time-limit 3 demo.cast docs/demo.gif
+          ffmpeg -y -loglevel error -i docs/demo.gif -movflags +faststart -pix_fmt yuv420p \
+            -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" docs/demo.mp4
+
+      - name: Log da API
+        if: failure()
+        run: cat app.log
+
+      - name: Publicar
+        run: |
+          git config user.name "HeitorDevCod"
+          git config user.email "heitordevcod@outlook.com"
+          git add docs/demo.gif docs/demo.mp4
+          git commit -m "Adiciona demonstração em vídeo"
+          git push
