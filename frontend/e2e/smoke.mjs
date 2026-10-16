@@ -134,7 +134,7 @@ await step('lista de pedidos', async () => {
   await heading('Meus pedidos');
   await page.locator('.rows__item').first().waitFor();
   const rows = await page.locator('.rows__item').count();
-  if (rows < 4) throw new Error(`esperava ao menos 4 pedidos, veio ${rows}`);
+  if (rows !== 3) throw new Error(`esperava 3 pedidos (o checkout só cria o pedido ao pagar), veio ${rows}`);
 });
 
 await browser.close();
