@@ -110,6 +110,7 @@ await step('Pix cancelado libera o pedido para nova tentativa', async () => {
 await step('parcela mínima de R$ 5,00 limita as opções', async () => {
   await addAndCheckout(3);
   await page.getByRole('tab', { name: /Cartão/ }).click();
+  await page.locator('#cc-installments option').first().waitFor({ state: 'attached' });
   const options = await page.locator('#cc-installments option').count();
   if (options !== 3) throw new Error(`esperava 3 opções de parcela para R$ 19,90, veio ${options}`);
 });
