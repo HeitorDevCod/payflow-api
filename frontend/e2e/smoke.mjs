@@ -17,6 +17,7 @@ const step = async (name, fn) => {
     console.log(`ok   ${name}`);
   } catch (error) {
     console.log(`FAIL ${name}`);
+    console.log(`::error title=${name}::${String(error?.message ?? error).split('\n').slice(0, 6).join(' | ')}`);
     await page.screenshot({ path: `smoke-failure.png`, fullPage: true });
     throw error;
   }
@@ -136,7 +137,7 @@ await step('lista de pedidos', async () => {
 
 await browser.close();
 if (errors.length) {
-  console.log('Erros no console:\n' + errors.join('\n'));
+  console.log(`::error title=Erros no console::${errors.join(' | ')}`);
   process.exit(1);
 }
 console.log('Todos os fluxos passaram.');

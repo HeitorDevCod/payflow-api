@@ -50,4 +50,5 @@ jobs:
           git config user.email "heitordevcod@outlook.com"
           git add docs/demo-web.mp4 docs/demo-web.gif
           git commit -m "Adiciona vídeo do front-end"
+          git pull --rebase origin main
           git push

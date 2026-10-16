@@ -1,14 +1,25 @@
-# Payflow API
+# Payflow
 
 [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![Demo online](../../actions/workflows/pages.yml/badge.svg)](https://heitordevcod.github.io/payflow-api/)
 
-Backend de pedidos e pagamentos em **Java 21 + Spring Boot 3**, integrado ao **Mercado Pago**. Aceita **Pix**, **cartão de crédito** (com parcelamento), **boleto** e **assinaturas recorrentes**, com foco em um ponto que costuma ser negligenciado: **nunca confirmar um pagamento sem validá-lo de ponta a ponta**.
+Sistema full stack de pedidos e pagamentos integrado ao **Mercado Pago**: backend em **Java 21 + Spring Boot 3** e front-end em **Angular 20**. Aceita **Pix**, **cartão de crédito** (com parcelamento), **boleto** e **assinaturas recorrentes**, com foco em um ponto que costuma ser negligenciado: **nunca confirmar um pagamento sem validá-lo de ponta a ponta**.
+
+**[▶ Testar a demo online](https://heitordevcod.github.io/payflow-api/)**: crie uma conta com qualquer e-mail e o CPF de teste `529.982.247-25`. Na demo, o front-end roda com uma versão simulada da API dentro do navegador, sem cobrança real.
 
 ## Demonstração
 
-![Demonstração da Payflow API](docs/demo.gif)
+### Loja e checkout (front-end)
 
-Fluxo completo de um pagamento Pix: cadastro e login, criação do pedido, cobrança com `Idempotency-Key`, clique duplicado sem nova cobrança, webhook forjado recusado e webhook assinado aprovando o pedido. A gravação é feita pelo workflow [`demo.yml`](.github/workflows/demo.yml) com a API rodando sobre PostgreSQL e o Mercado Pago simulado por WireMock (roteiro em [`demo/demo.sh`](demo/demo.sh)). [Versão em MP4](docs/demo.mp4).
+![Fluxo de compra com Pix no front-end](docs/demo-web.gif)
+
+Carrinho, cadastro, escolha da forma de pagamento, QR Code do Pix com contagem regressiva e confirmação do pagamento. [Versão em MP4](docs/demo-web.mp4).
+
+### API rodando
+
+![Demonstração da API](docs/demo.gif)
+
+Fluxo completo de um pagamento Pix direto na API: cadastro e login, criação do pedido, cobrança com `Idempotency-Key`, clique duplicado sem nova cobrança, webhook forjado recusado e webhook assinado aprovando o pedido. A gravação é feita pelo workflow [`demo.yml`](.github/workflows/demo.yml) com a API rodando sobre PostgreSQL e o Mercado Pago simulado por WireMock (roteiro em [`backend/demo/demo.sh`](backend/demo/demo.sh)). [Versão em MP4](docs/demo.mp4).
 
 ## O que o projeto resolve
 
@@ -73,14 +84,27 @@ stateDiagram-v2
     APPROVED --> CHARGED_BACK
 ```
 
+## Front-end
+
+Aplicação Angular 20 com componentes standalone, signals e detecção de mudanças sem zone.js.
+
+- **Loja e carrinho**: catálogo vindo da API, carrinho salvo no navegador e total sempre recalculado pelo servidor.
+- **Checkout**: Pix, cartão (até 12x, respeitando a parcela mínima) e boleto com endereço validado. Cada tentativa envia uma `Idempotency-Key` nova; o pedido é criado uma única vez e reaproveitado em novas tentativas.
+- **Comprovante de pagamento**: QR Code do Pix gerado no navegador, código copia e cola, contagem regressiva até expirar e atualização automática do status (consulta ao provedor a cada poucos segundos, como rede de segurança caso o webhook atrase).
+- **Cartão**: com o backend real, usa o Card Payment Brick do Mercado Pago. Os dados do cartão vão direto para o Mercado Pago e só o token chega à API, o que mantém a aplicação fora do escopo mais pesado do PCI DSS.
+- **Pedidos e assinaturas**: histórico de tentativas por pedido, cancelamento, e assinaturas com pausar, retomar e cancelar.
+- **Modo demonstração**: um interceptor HTTP responde no próprio navegador com as mesmas regras da API (idempotência, um pagamento ativo por pedido, parcela mínima, validação de CPF e endereço) e segue a convenção dos cartões de teste do Mercado Pago (titular `APRO` aprova, `OTHE` recusa, `FUND` saldo insuficiente, `CONT` em análise). É assim que a demo roda no GitHub Pages sem servidor.
+- **Testes de interface**: o CI percorre os fluxos de cadastro, cartão recusado e aprovado, boleto, Pix cancelado, parcela mínima e assinaturas com Playwright ([`frontend/e2e/smoke.mjs`](frontend/e2e/smoke.mjs)).
+
 ## Stack
 
-- Java 21, Spring Boot 3.5 (Web, Data JPA, Security, Validation, Actuator)
-- PostgreSQL 16 + Flyway
-- JWT (jjwt) com BCrypt
-- OpenAPI / Swagger UI (springdoc)
-- JUnit 5, Mockito, MockMvc, MockRestServiceServer, H2 para testes, JaCoCo
-- Docker multi-stage, Docker Compose e GitHub Actions
+| Camada | Tecnologias |
+|---|---|
+| Backend | Java 21, Spring Boot 3.5 (Web, Data JPA, Security, Validation, Actuator), JWT (jjwt) com BCrypt, OpenAPI / Swagger UI |
+| Front-end | Angular 20, TypeScript, RxJS, signals, SCSS, SDK JS do Mercado Pago |
+| Dados | PostgreSQL 16 + Flyway |
+| Testes | JUnit 5, Mockito, MockMvc, MockRestServiceServer, H2, JaCoCo, Playwright |
+| Infraestrutura | Docker multi-stage, Nginx, Docker Compose, GitHub Actions, GitHub Pages |
 
 ## Como rodar
 
@@ -91,30 +115,47 @@ cp .env.example .env   # preencha com suas credenciais de teste do Mercado Pago
 docker compose up --build
 ```
 
-A API sobe em `http://localhost:8080` e a documentação interativa fica em `http://localhost:8080/docs`.
+| Serviço | Endereço |
+|---|---|
+| Front-end | `http://localhost:4200` |
+| API | `http://localhost:8080` |
+| Documentação interativa | `http://localhost:8080/docs` |
+
+O Nginx do front-end encaminha `/api` para o backend, então não há configuração de CORS.
 
 ### Localmente
 
 ```bash
 docker compose up -d postgres
+
+# backend
+cd backend
 export MP_ACCESS_TOKEN=TEST-...
+export MP_PUBLIC_KEY=TEST-...
 export MP_WEBHOOK_SECRET=...
 mvn spring-boot:run
+
+# front-end (em outro terminal)
+cd frontend
+npm install
+npm start            # http://localhost:4200, com proxy para a API
+npm run build:demo   # versão de demonstração, sem backend
 ```
 
 ### Testes
 
 ```bash
-mvn verify
+cd backend && mvn verify
 ```
 
-O relatório de cobertura é gerado em `target/site/jacoco/index.html`.
+O relatório de cobertura é gerado em `backend/target/site/jacoco/index.html`.
 
 ## Configuração
 
 | Variável | Descrição |
 |---|---|
 | `MP_ACCESS_TOKEN` | Access token do Mercado Pago (use o de teste no desenvolvimento) |
+| `MP_PUBLIC_KEY` | Chave pública do Mercado Pago, entregue ao front-end para o formulário de cartão |
 | `MP_WEBHOOK_SECRET` | Chave secreta exibida no painel de webhooks do Mercado Pago |
 | `MP_NOTIFICATION_URL` | URL pública que receberá os webhooks (`/webhooks/mercadopago`) |
 | `JWT_SECRET` | Segredo HMAC dos tokens, com no mínimo 32 caracteres |
@@ -127,6 +168,7 @@ Para receber webhooks em ambiente local, exponha a porta 8080 com uma ferramenta
 
 | Método | Rota | Descrição |
 |---|---|---|
+| `GET` | `/config` | Chave pública do Mercado Pago para o front-end |
 | `POST` | `/auth/register` | Cadastro de cliente (CPF validado) |
 | `POST` | `/auth/login` | Retorna o token JWT |
 | `GET` | `/me` | Dados do usuário autenticado |
@@ -191,19 +233,27 @@ Os dados do cartão nunca passam por este backend. O front-end usa o SDK JS do M
 ## Estrutura
 
 ```
-src/main/java/com/payflow
-├── auth            # cadastro, login, JWT
-├── catalog         # produtos
-├── order           # pedidos e itens
-├── payment
-│   ├── api         # controllers e DTOs
-│   ├── application # serviço, sincronização e reconciliação
-│   ├── domain      # entidades, status e auditoria
-│   └── gateway     # porta de saída + implementação Mercado Pago
-├── subscription    # assinaturas recorrentes (preapproval)
-├── webhook         # recepção e validação de notificações
-├── shared          # exceções e validações (CPF)
-└── config          # segurança, OpenAPI, relógio
+backend/                      # API em Java + Spring Boot
+└── src/main/java/com/payflow
+    ├── auth                  # cadastro, login, JWT
+    ├── catalog               # produtos
+    ├── order                 # pedidos e itens
+    ├── payment
+    │   ├── api               # controllers e DTOs
+    │   ├── application       # serviço, sincronização e reconciliação
+    │   ├── domain            # entidades, status e auditoria
+    │   └── gateway           # porta de saída + implementação Mercado Pago
+    ├── subscription          # assinaturas recorrentes (preapproval)
+    ├── webhook               # recepção e validação de notificações
+    ├── shared                # exceções e validações (CPF)
+    └── config                # segurança, OpenAPI, configuração pública
+frontend/                     # Angular
+└── src/app
+    ├── core                  # API tipada, autenticação, carrinho, rótulos de status
+    ├── demo                  # API simulada usada na demo online
+    ├── shared                # formulário de cartão (Mercado Pago), selo de status
+    └── pages                 # loja, login, checkout, pagamento, pedidos, assinaturas
+docker-compose.yml            # PostgreSQL + API + front-end
 ```
 
 ## Licença
