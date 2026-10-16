@@ -14,6 +14,7 @@ const context = await browser.newContext({
   colorScheme: 'light',
   recordVideo: { dir: outDir, size },
 });
+await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(base).origin });
 const page = await context.newPage();
 const pause = (ms) => page.waitForTimeout(ms);
 const type = async (selector, text) => {
