@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:payflow;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+security:
+  jwt:
+    secret: test-secret-test-secret-test-secret-123456
+
+mercadopago:
+  base-url: https://api.mercadopago.test
+  access-token: TEST-token
+  webhook-secret: webhook-test-secret
+
+payments:
+  reconciliation:
+    enabled: false
+
+logging:
+  level:
+    com.payflow: INFO
