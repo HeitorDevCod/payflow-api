@@ -1,0 +1,52 @@
+name: Vídeo do front-end
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build do modo demonstração
+        run: |
+          npm install --no-audit --no-fund
+          npx ng build --configuration demo
+
+      - name: Playwright
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Gravar
+        run: |
+          python3 -m http.server 4300 --directory dist/payflow-web/browser > /dev/null 2>&1 &
+          sleep 2
+          node e2e/record-demo.mjs http://localhost:4300 ./video
+          mkdir -p ../docs
+          ffmpeg -y -loglevel error -i video/*.webm -c:v libx264 -preset slow -crf 24 -pix_fmt yuv420p \
+            -movflags +faststart ../docs/demo-web.mp4
+          ffmpeg -y -loglevel error -i ../docs/demo-web.mp4 \
+            -vf "fps=12,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" \
+            ../docs/demo-web.gif
+          ls -la ../docs
+
+      - name: Publicar
+        working-directory: .
+        run: |
+          git config user.name "HeitorDevCod"
+          git config user.email "heitordevcod@outlook.com"
+          git add docs/demo-web.mp4 docs/demo-web.gif
+          git commit -m "Adiciona vídeo do front-end"
+          git push
