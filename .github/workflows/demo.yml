@@ -30,14 +30,15 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
+          cache-dependency-path: backend/pom.xml
 
       - name: Build
-        run: mvn -B -q package -DskipTests
+        run: mvn -B -q -f backend/pom.xml package -DskipTests
 
       - name: Mercado Pago simulado
         run: |
           docker run -d --name mp -p 8089:8080 \
-            -v "$PWD/demo/wiremock:/home/wiremock" \
+            -v "$PWD/backend/demo/wiremock:/home/wiremock" \
             wiremock/wiremock:3.9.1 --global-response-templating
           until curl -sf http://localhost:8089/__admin/mappings > /dev/null; do sleep 1; done
 
@@ -48,7 +49,7 @@ jobs:
           MP_WEBHOOK_SECRET: demo-webhook-secret
           JWT_SECRET: demo-secret-demo-secret-demo-secret-1234
         run: |
-          nohup java -jar target/payflow-api-*.jar > app.log 2>&1 &
+          nohup java -jar backend/target/payflow-api-*.jar > app.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf http://localhost:8080/actuator/health > /dev/null && exit 0
             sleep 2
@@ -68,7 +69,7 @@ jobs:
           MP_WEBHOOK_SECRET: demo-webhook-secret
         run: |
           stty cols 92 rows 34 || true
-          asciinema rec --overwrite --cols 92 --rows 34 -c "bash demo/demo.sh" demo.cast
+          asciinema rec --overwrite --cols 92 --rows 34 -c "bash backend/demo/demo.sh" demo.cast
           mkdir -p docs
           ./agg --theme monokai --font-size 18 --idle-time-limit 3 demo.cast docs/demo.gif
           ffmpeg -y -loglevel error -i docs/demo.gif -movflags +faststart -pix_fmt yuv420p \

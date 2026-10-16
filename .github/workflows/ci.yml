@@ -6,8 +6,11 @@ on:
   pull_request:
 
 jobs:
-  build:
+  backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -16,6 +19,7 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
+          cache-dependency-path: backend/pom.xml
 
       - name: Testes e cobertura
         run: mvn -B verify
@@ -25,7 +29,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jacoco-report
-          path: target/site/jacoco
+          path: backend/target/site/jacoco
 
       - name: Build da imagem Docker
         run: docker build -t payflow-api:ci .
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Dependências
+        run: npm install --no-audit --no-fund
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Build do modo demonstração
+        run: npm run build:demo

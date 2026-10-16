@@ -16,7 +16,7 @@ services:
       retries: 10
 
   api:
-    build: .
+    build: ./backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -29,6 +29,13 @@ services:
       DB_PASSWORD: payflow
     ports:
       - "8080:8080"
+
+  web:
+    build: ./frontend
+    depends_on:
+      - api
+    ports:
+      - "4200:80"
 
 volumes:
   pgdata:
