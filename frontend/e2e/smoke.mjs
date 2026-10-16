@@ -132,6 +132,7 @@ await step('assinatura: criar, pausar, retomar e cancelar', async () => {
 await step('lista de pedidos', async () => {
   await page.goto(`${base}/#/pedidos`);
   await heading('Meus pedidos');
+  await page.locator('.rows__item').first().waitFor();
   const rows = await page.locator('.rows__item').count();
   if (rows < 4) throw new Error(`esperava ao menos 4 pedidos, veio ${rows}`);
 });
